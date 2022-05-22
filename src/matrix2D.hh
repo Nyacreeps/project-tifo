@@ -35,10 +35,6 @@ public:
         int row;
     };
 
-    Matrix2D(size_t rows, size_t cols) :
-        data_(std::vector<T>(rows * cols)),
-        rows_(rows), cols_(cols) {};
-
     Row2D operator[](int row) {
         return Row2D(*this, row);
     }
@@ -46,8 +42,14 @@ public:
     Row2DConst operator[](int row) const {
         return Row2DConst(*this, row);
     }
+    
+    Matrix2D(int rows, int cols) :
+        rows_(rows), cols_(cols), data_(std::vector<T>(rows * cols)) {};
 
-    size_t rows_, cols_;
+    static Matrix2D<T> loadFromPNG(const std::string& path);
+    void saveAsPNG(const std::string& path);
+
+    int rows_, cols_;
 private:
     std::vector<T> data_;
 };
