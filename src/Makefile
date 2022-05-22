@@ -4,7 +4,7 @@ OPT_FLAGS=-o3 -DDEBUG
 DEBUG_FLAGS=-g -lasan
 
 debug : ${SRC}
-	g++ ${FLAGS} ${DEBUG_FLAGS} main.cc ${SRC} -o dehaze
+	g++ ${FLAGS} ${DEBUG_FLAGS} main.cc ${SRC} -o filter
 
 final : ${SRC}
-	g++ ${FLAGS} ${OPT_FLAGS} main.cc ${SRC} -o dehaze
+	g++ ${FLAGS} ${OPT_FLAGS} main.cc ${SRC} -o filter
