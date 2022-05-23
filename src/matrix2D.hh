@@ -48,6 +48,7 @@ public:
 
     static Matrix2D<T> loadFromPNG(const std::string& path);
     void saveAsPNG(const std::string& path);
+    static Matrix2D<T> loadFromYUV420Frame(char* frame, int width, int height, int bytes);
 
     int rows_, cols_;
 private:

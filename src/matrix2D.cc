@@ -38,3 +38,34 @@ void Matrix2D<color::RGB>::saveAsPNG(const std::string& path) {
         throw std::exception();
     }
 }
+
+template<>
+Matrix2D<color::RGB> Matrix2D<color::RGB>::loadFromYUV420Frame(char* frame, int width, int height, int bytes) {
+    auto output = Matrix2D<color::RGB>(height, width);
+
+    const int size = width * height;
+
+    //After width*height luminance values we have the Cr values
+    const size_t CrBase = size;
+
+    //After width*height luminance values + width*height/4 we have the Cb values
+    const size_t CbBase = size + width*height/4;
+
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            int index = i * width + j;
+            int Y  = frame[index] - 16;
+            int Cr = frame[CrBase + index/4]  - 128;
+            int Cb = frame[CbBase + index/4]  - 128;
+
+            double R = 1.164*Y+1.596*Cr;
+            double G = 1.164*Y-0.392*Cb-0.813*Cr;
+            double B = 1.164*Y+2.017*Cb;
+
+            output[i][j].red = (R > 255) ? 255 : ((R < 0) ? 0 : R);
+            output[i][j].green = (G > 255) ? 255 : ((G < 0) ? 0 : G);
+            output[i][j].blue = (B > 255) ? 255 : ((B < 0) ? 0 : B);
+        }
+    }
+    return output;
+}
