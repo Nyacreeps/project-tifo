@@ -33,6 +33,56 @@ int frame_width;
 int frame_height;
 size_t frame_bytes;
 
+void yuv420_to_rgb(unsigned char* yuv_buffer, unsigned char* rgb_buffer, int height, int width) {
+	const int size = width * height;
+
+	const size_t CbBase = size;
+
+    const size_t CrBase = size + width*height/4;
+
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            int index = i * width * 3 + j * 3;
+            int Y  = yuv_buffer[i * width + j] - 16;
+            int Cr = yuv_buffer[CrBase + (i * width / 4) + (j / 2)]  - 128;
+            int Cb = yuv_buffer[CbBase + (i * width / 4) + (j / 2)]  - 128;
+
+            double R = 1.164*Y+1.596*Cr;
+            double G = 1.164*Y-0.392*Cb-0.813*Cr;
+            double B = 1.164*Y+2.017*Cb;
+
+            rgb_buffer[index] = (R > 255) ? 255 : ((R < 0) ? 0 : R);
+            rgb_buffer[index + 1] = (G > 255) ? 255 : ((G < 0) ? 0 : G);
+            rgb_buffer[index + 2] = (B > 255) ? 255 : ((B < 0) ? 0 : B);
+        }
+    }
+}
+
+void rgb_to_yuv420(unsigned char* yuv_buffer, unsigned char* rgb_buffer, int height, int width) {
+	const int size = width * height;
+
+	const size_t CbBase = size;
+
+    const size_t CrBase = size + width*height/4;
+
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            int index = i * width * 3 + j * 3;
+			unsigned char r = rgb_buffer[index];
+			unsigned char g = rgb_buffer[index + 1];
+			unsigned char b = rgb_buffer[index + 2];
+
+			int Y = 16 + 0.257 * r + 0.504 * g + 0.098 * b;
+			int Cb = 128 - 0.148 * r - 0.291 * g + 0.439 * b;
+			int Cr = 128 + 0.439 * r - 0.368 * g - 0.071 * b;
+
+			yuv_buffer[i * width + j] = (Y > 235) ? 235 : ((Y < 16) ? 16 : Y);
+			yuv_buffer[CrBase + (i * width / 4) + (j / 2)] = (Cr > 240) ? 240 : ((Cr < 16) ? 16 : Cr);
+			yuv_buffer[CbBase + (i * width / 4) + (j / 2)] = (Cb > 240) ? 240 : ((Cb < 16) ? 16 : Cb);
+        }
+    }
+}
+
 void
 usage(void)
 {
@@ -138,6 +188,7 @@ void copy_frames(void) {
 	unsigned char *frame;
 
 	frame = (unsigned char*)malloc(frame_bytes);
+	unsigned char* rgb_frame = (unsigned char*)malloc(frame_height * frame_width * 3 * sizeof(unsigned char));
 	if (frame == NULL) 
 		fail((char*)"cannot malloc frame");
 	while (read_header((char*)"FRAME")) {
@@ -145,13 +196,14 @@ void copy_frames(void) {
     		free(frame);
 			fail((char*)"malformed frame");
     	}
-		auto mat = Matrix2D<color::RGB>::loadFromYUV420Frame(frame, frame_width, frame_height);
-		// mat.saveAsPNG("../resources/test/a.png");
+		yuv420_to_rgb(frame, rgb_frame, frame_height, frame_width);
+		rgb_to_yuv420(frame, rgb_frame, frame_height, frame_width);
 		if (write(dev_fd, frame, frame_bytes) != frame_bytes) {
     		free(frame);
 			sysfail((char*)"write");
     	}
 	}
+	free(rgb_frame);
 	free(frame);
 }
 
