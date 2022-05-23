@@ -184,6 +184,11 @@ void copy_frames(void) {
 			fail((char*)"malformed frame");
     	}
 		yuv420_to_rgb(frame, rgb_frame, frame_height, frame_width);
+		/**************************************************************
+		 * 
+		 *                  TODO FILTER GOES HERE
+		 * 
+		 **************************************************************/
 		rgb_to_yuv420(frame, rgb_frame, frame_height, frame_width);
 		if (write(dev_fd, frame, frame_bytes) != frame_bytes) {
     		free(frame);
