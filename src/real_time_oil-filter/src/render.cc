@@ -1,5 +1,7 @@
 #include "render.hh"
 
+#include "video.hh"
+
 int main(int argc, char **argv)
 {
     (void) argc;
@@ -29,5 +31,8 @@ int main(int argc, char **argv)
         auto result = oil_filter(image, width, height);
         write_png(output_file.c_str(), result, width, height);
         free(image);
+    }
+    else if (mode == "webcam") {
+        launch_webcam(input_file.c_str());
     }
 }
