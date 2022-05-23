@@ -40,23 +40,21 @@ void Matrix2D<color::RGB>::saveAsPNG(const std::string& path) {
 }
 
 template<>
-Matrix2D<color::RGB> Matrix2D<color::RGB>::loadFromYUV420Frame(char* frame, int width, int height, int bytes) {
+Matrix2D<color::RGB> Matrix2D<color::RGB>::loadFromYUV420Frame(unsigned char* frame, int width, int height) {
     auto output = Matrix2D<color::RGB>(height, width);
 
     const int size = width * height;
 
-    //After width*height luminance values we have the Cr values
-    const size_t CrBase = size;
+    const size_t CbBase = size;
 
-    //After width*height luminance values + width*height/4 we have the Cb values
-    const size_t CbBase = size + width*height/4;
+    const size_t CrBase = size + width*height/4;
 
     for (int i = 0; i < height; i++) {
         for (int j = 0; j < width; j++) {
             int index = i * width + j;
             int Y  = frame[index] - 16;
-            int Cr = frame[CrBase + index/4]  - 128;
-            int Cb = frame[CbBase + index/4]  - 128;
+            int Cr = frame[CrBase + (i * width / 4) + (j / 2)]  - 128;
+            int Cb = frame[CbBase + (i * width / 4) + (j / 2)]  - 128;
 
             double R = 1.164*Y+1.596*Cr;
             double G = 1.164*Y-0.392*Cb-0.813*Cr;

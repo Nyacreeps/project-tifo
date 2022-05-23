@@ -31,12 +31,12 @@ int dev_fd;
 
 int frame_width;
 int frame_height;
-int frame_bytes;
+size_t frame_bytes;
 
 void
 usage(void)
 {
-	fprintf(stderr, "Usage: %s [/dev/videoN]\n", prog);
+	fprintf(stderr, (char*)"Usage: %s [/dev/videoN]\n", prog);
 	exit(1);
 }
 
@@ -46,7 +46,7 @@ process_args(int argc, char **argv)
 	prog = argv[0];
 	switch (argc) {
 	case 1:
-		device = "/dev/video0";
+		device = (char*)"/dev/video0";
 		break;
 	case 2:
 		device = argv[1];
@@ -76,7 +76,7 @@ bad_header(char *kind)
 {
 	char msg[64];
 
-	sprintf(msg, "malformed %s header", kind);
+	sprintf(msg, (char*)"malformed %s header", kind);
 	fail(msg);
 }
 
@@ -129,27 +129,27 @@ read_header(char *magic)
 void
 process_header(void)
 {
-	if (!read_header("YUV4MPEG2")) fail("missing YUV4MPEG2 header");
+	if (!read_header((char*)"YUV4MPEG2")) fail((char*)"missing YUV4MPEG2 header");
 	frame_bytes = 3 * frame_width * frame_height / 2;
-	if (frame_bytes == 0) fail("frame width or height is missing");
+	if (frame_bytes == 0) fail((char*)"frame width or height is missing");
 }
 
 void copy_frames(void) {
-	char *frame;
+	unsigned char *frame;
 
-	frame = (char*)malloc(frame_bytes);
+	frame = (unsigned char*)malloc(frame_bytes);
 	if (frame == NULL) 
-		fail("cannot malloc frame");
-	while (read_header("FRAME")) {
+		fail((char*)"cannot malloc frame");
+	while (read_header((char*)"FRAME")) {
 		if (fread(frame, 1, frame_bytes, stdin) != frame_bytes) {
     		free(frame);
-			fail("malformed frame");
+			fail((char*)"malformed frame");
     	}
-		auto mat = Matrix2D<color::RGB>::loadFromYUV420Frame(frame, frame_width, frame_height, frame_bytes);
-		mat.saveAsPNG("../resources/test/a.png");
+		auto mat = Matrix2D<color::RGB>::loadFromYUV420Frame(frame, frame_width, frame_height);
+		// mat.saveAsPNG("../resources/test/a.png");
 		if (write(dev_fd, frame, frame_bytes) != frame_bytes) {
     		free(frame);
-			sysfail("write");
+			sysfail((char*)"write");
     	}
 	}
 	free(frame);
@@ -157,8 +157,8 @@ void copy_frames(void) {
 
 #define vidioc(op, arg) \
 	if (ioctl(dev_fd, VIDIOC_##op, arg) == -1) \
-		sysfail(#op); \
-	else
+		sysfail((char*)#op); \
+	else {}
 
 void
 open_video(void)
