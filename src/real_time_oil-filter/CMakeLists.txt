@@ -31,6 +31,8 @@ FetchContent_MakeAvailable(CLI11)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR} )
 find_package(PNG REQUIRED)
+find_package(OpenCV REQUIRED)
+include_directories(${OpenCV_INCLUDE_DIRS})
 
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wall -Wextra -pedantic -std=c++20 -O3 -DNDEBUG -fopenmp")
@@ -46,7 +48,7 @@ add_executable(render)
 target_sources(render PRIVATE src/render.cc src/io_png.cc src/video.cc)
 target_include_directories(render PRIVATE src)
 target_compile_features(render PUBLIC)
-target_link_libraries(render PRIVATE PNG::PNG CLI11::CLI11 spdlog::spdlog oil-filter)
+target_link_libraries(render PRIVATE PNG::PNG CLI11::CLI11 spdlog::spdlog oil-filter ${OpenCV_LIBS})
 
 add_executable(bench)
 target_sources(bench PRIVATE src/bench.cc src/io_png.cc)

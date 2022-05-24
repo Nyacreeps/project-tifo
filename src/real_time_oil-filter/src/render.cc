@@ -1,4 +1,8 @@
 #include "render.hh"
+#include <opencv4/opencv2/core.hpp>
+#include <opencv4/opencv2/videoio.hpp>
+#include <opencv4/opencv2/highgui.hpp>
+#include <opencv4/opencv2/imgproc.hpp>
 
 #include "video.hh"
 
@@ -7,8 +11,8 @@ int main(int argc, char **argv)
     (void) argc;
     (void) argv;
 
-    std::string input_file = "input.png";
-    std::string output_file = "output.png";
+    std::string input_file = "";
+    std::string output_file = "";
     std::string mode = "image";
     bool debug = false;
 
@@ -26,6 +30,8 @@ int main(int argc, char **argv)
 
     if (mode == "image")
     {
+        if (output_file == "")
+            output_file = "output.png";
         int width, height = 0;
         auto image_ = read_png(input_file.c_str(), &width, &height);
         auto image = flatten(image_, width * 3, height);
@@ -40,6 +46,75 @@ int main(int argc, char **argv)
         free(result);
     }
     else if (mode == "webcam") {
-        launch_webcam(input_file.c_str());
+        cv::Mat cur_frame;
+        cv::namedWindow("Capture", cv::WINDOW_AUTOSIZE);
+        cv::VideoCapture video_capture(0);
+        while (true) {
+            video_capture >> cur_frame;
+            std::vector<uchar> array;
+            if (cur_frame.isContinuous()) {
+                array.assign(cur_frame.data, cur_frame.data + cur_frame.total() * cur_frame.channels());
+            } else {
+                for (int i = 0; i < cur_frame.rows; ++i) {
+                    array.insert(array.end(), cur_frame.ptr<uchar>(i),
+                                 cur_frame.ptr<uchar>(i) + cur_frame.cols * cur_frame.channels());
+                }
+            }
+            auto res = oil_filter(array.data(), cur_frame.cols, cur_frame.rows);
+            cv::Mat result(cur_frame.rows, cur_frame.cols, CV_8UC3, res);
+            cv::resize(result, result, cv::Size(cur_frame.cols * 3, cur_frame.rows * 3), 0, 0, cv::INTER_LINEAR);
+            cv::imshow("Capture", result);
+            free(res);
+            int key = cv::waitKey(30) & 0xFF;
+            if (key == 27) {
+                cv::destroyAllWindows();
+                break;
+            }
+        }
+    }
+    if (mode == "video") {
+        if (output_file == "")
+            output_file = "output.avi";
+        spdlog::debug("Reading {}", input_file);
+        cv::VideoCapture cap(input_file);
+
+        if (!cap.isOpened()) {
+            std::cout << "Error opening video stream" << std::endl;
+            return -1;
+        }
+
+        int frame_width = cap.get(cv::CAP_PROP_FRAME_WIDTH);
+        int frame_height = cap.get(cv::CAP_PROP_FRAME_HEIGHT);
+
+        cv::VideoWriter video(output_file, cv::VideoWriter::fourcc('M','J','P','G'), 30, cv::Size(frame_width,frame_height));
+        while(true) {
+            cv::Mat cur_frame;
+
+            cap >> cur_frame;
+            if (cur_frame.empty())
+                break;
+
+            std::vector<uchar> array;
+            if (cur_frame.isContinuous()) {
+                array.assign(cur_frame.data, cur_frame.data + cur_frame.total() * cur_frame.channels());
+            } else {
+                for (int i = 0; i < cur_frame.rows; ++i) {
+                    array.insert(array.end(), cur_frame.ptr<uchar>(i),
+                                 cur_frame.ptr<uchar>(i) + cur_frame.cols * cur_frame.channels());
+                }
+            }
+            auto res = oil_filter(array.data(), cur_frame.cols, cur_frame.rows);
+            cv::Mat result(cur_frame.rows, cur_frame.cols, CV_8UC3, res);
+            free(res);
+
+            video.write(result);
+            imshow("Frame", result);
+            auto key = cv::waitKey(25) & 0xFF;
+            if(key == 27)
+                break;
+        }
+        cap.release();
+        video.release();
+        cv::destroyAllWindows();
     }
 }

@@ -22,6 +22,7 @@
 #include <sys/ioctl.h>
 #include <linux/videodev2.h>
 #include "filter.cuh"
+#include "io_png.hh"
 
 char *prog;
 
@@ -167,26 +168,25 @@ process_header(void)
 
 void copy_frames(void) {
 	auto frame = (unsigned char*)malloc(frame_bytes);
-	//auto rgb_frame = (unsigned char*)malloc(frame_height * frame_width * 3 * sizeof(unsigned char));
+	auto rgb_frame = (unsigned char*)malloc(frame_height * frame_width * 3 * sizeof(unsigned char));
 
     while (read_header((char*)"FRAME")) {
 		if (fread(frame, 1, frame_bytes, stdin) != frame_bytes) {
     		free(frame);
 			fail((char*)"malformed frame");
     	}
-		//yuv420_to_rgb(frame, rgb_frame, frame_height, frame_width);
-		//rgb_to_yuv420(frame, rgb_frame, frame_height, frame_width);
-
-        auto tmp_frame = oil_filter_yuv420(frame, frame_height, frame_width);
-        free(frame);
-        frame = tmp_frame;
+		yuv420_to_rgb(frame, rgb_frame, frame_height, frame_width);
+        auto tmp_frame = oil_filter(rgb_frame, frame_height, frame_width);
+		free(rgb_frame);
+        rgb_frame = tmp_frame;
+        rgb_to_yuv420(frame, rgb_frame, frame_height, frame_width);
 
         if (write(dev_fd, frame, frame_bytes) != (ssize_t)frame_bytes) {
     		free(frame);
 			sysfail("write");
     	}
 	}
-	//free(rgb_frame);
+	free(rgb_frame);
 	free(frame);
 }
 

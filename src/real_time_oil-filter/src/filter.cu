@@ -1,4 +1,6 @@
 #include "filter.cuh"
+#include "io_png.hh"
+#include <unistd.h>
 
 [[gnu::noinline]]
 void _abortError(const char *msg, const char *fname, int line) {
@@ -135,7 +137,7 @@ __global__ void apply_filter(unsigned char *buffer, size_t bufferPitch, size_t w
     res_line[x * 3 + 2] = (int)round((double)B / (double)n);
 }
 
-static unsigned char *oil_filter_(unsigned char *devBuffer, size_t *Pitch, const int width, const int height)
+static void oil_filter_(unsigned char **devRes, size_t *ResPitch, unsigned char *devBuffer, size_t BufferPitch, const int width, const int height)
 {
     int bsize = 32;
     int w = std::ceil((float) width / (float)bsize);
@@ -145,8 +147,6 @@ static unsigned char *oil_filter_(unsigned char *devBuffer, size_t *Pitch, const
 
     dim3 dimBlock(bsize, bsize);
     dim3 dimGrid(w, h);
-
-    const auto BufferPitch = *Pitch;
 
     // Device I
     unsigned char *devI;
@@ -179,21 +179,16 @@ static unsigned char *oil_filter_(unsigned char *devBuffer, size_t *Pitch, const
     cudaDeviceSynchronize();
 
     // Device result
-    unsigned char *devRes;
-    size_t ResPitch;
-    if (cudaMallocPitch(&devRes, &ResPitch, width * 3 * sizeof(unsigned char), height) != cudaSuccess)
+    if (cudaMallocPitch(devRes, ResPitch, width * 3 * sizeof(unsigned char), height) != cudaSuccess)
         abortError("Fail result allocation");
 
     apply_filter<RADIUS><<<dimGrid, dimBlock>>>(devBuffer, BufferPitch, width, height,
-                                                devRes, ResPitch, devMask, MaskPitch,
+                                                *devRes, *ResPitch, devMask, MaskPitch,
                                                 devI, IPitch, devImax, ImaxPitch);
     cudaDeviceSynchronize();
     cudaFree(devI);
     cudaFree(devImax);
     cudaFree(devMask);
-
-    *Pitch = ResPitch;
-    return devRes;
 }
 
 
@@ -201,115 +196,23 @@ unsigned char *oil_filter(unsigned char *buffer, const int width, const int heig
 {
     // Device image buffer
     unsigned char *devBuffer;
-    size_t Pitch;
-    if (cudaMallocPitch(&devBuffer, &Pitch, width * 3 * sizeof(unsigned char), height) != cudaSuccess)
+    size_t BufferPitch;
+    if (cudaMallocPitch(&devBuffer, &BufferPitch, width * 3 * sizeof(unsigned char), height) != cudaSuccess)
         abortError("Fail buffer allocation");
-    if (cudaMemcpy2D(devBuffer, Pitch, buffer, width * 3 * sizeof(unsigned char),
+    if (cudaMemcpy2D(devBuffer, BufferPitch, buffer, width * 3 * sizeof(unsigned char),
                      width * 3 * sizeof(unsigned char), height, cudaMemcpyHostToDevice) != cudaSuccess)
         abortError("Fail buffer copy");
 
-    auto res = (unsigned char *)malloc( height * width * 3 * sizeof(unsigned char));
-
-    auto devRes = oil_filter_(devBuffer, &Pitch, width, height);
+    unsigned char *devRes = nullptr;
+    size_t ResPitch;
+    oil_filter_(&devRes, &ResPitch, devBuffer, BufferPitch, width, height);
     cudaFree(devBuffer);
 
-    if (cudaMemcpy2D(res, width * 3 * sizeof(unsigned char), devRes, Pitch,
+    auto res = (unsigned char *)malloc( height * width * 3 * sizeof(unsigned char));
+    if (cudaMemcpy2D(res, width * 3 * sizeof(unsigned char), devRes, ResPitch,
                      width * 3 * sizeof(unsigned char), height, cudaMemcpyDeviceToHost) != cudaSuccess)
         abortError("Fail result copy");
     cudaFree(devRes);
-
-    return res;
-}
-
-__global__ void yuv2rgb(unsigned char *yuv, const int width, const int height, unsigned char *rgb, size_t pitch)
-{
-    const int x = blockDim.x * blockIdx.x + threadIdx.x;
-    const int y = blockDim.y * blockIdx.y + threadIdx.y;
-
-    if (x >= width || y >= height)
-        return;
-
-    const int size = width * height;
-    const size_t Ubase = size;
-    const size_t Vbase = size * 1.25;
-
-    auto Y = yuv[y * width + x];
-    auto U = yuv[Ubase + y * width / 4 + x / 2];
-    auto V = yuv[Vbase + y * width / 4 + x / 2];
-
-    double R = (double)Y + 1.140 * (double)V;
-    double G = Y - 0.395 * (double)U - 0.581 * (double)V;
-    double B = Y + 2.032 * (double)U;
-
-    auto rgb_buffer = rgb + y * pitch;
-
-    rgb_buffer[x * 3] = R > 255 ? 255 : R < 0 ? 0 : (unsigned char)R;
-    rgb_buffer[x * 3 + 1] = (G > 255) ? 255 : G < 0 ? 0 : (unsigned char)G;
-    rgb_buffer[x * 3 + 2] = (B > 255) ? 255 : B < 0 ? 0 : (unsigned char)B;
-}
-
-__global__ void rgb2yuv(unsigned char *rgb, size_t pitch, const int width, const int height, unsigned char *yuv)
-{
-    const int x = blockDim.x * blockIdx.x + threadIdx.x;
-    const int y = blockDim.y * blockIdx.y + threadIdx.y;
-
-    if (x >= width || y >= height)
-        return;
-
-    const int size = width * height;
-    const size_t Ubase = size;
-    const size_t Vbase = size * 1.25;
-
-    const auto rgb_line = rgb + y * pitch;
-    auto R = rgb_line[x * 3];
-    auto G = rgb_line[x * 3 + 1];
-    auto B = rgb_line[x * 3 + 2];
-
-    double Y = 0.299 * R + 0.587 * G + 0.114 * B;
-    double U = 0.492 * (B - Y);
-    double V = 0.877 * (R - Y);
-
-    yuv[y * width + x] = (Y > 255) ? 255 : Y < 0 ? 0 : (unsigned char)Y;
-    yuv[Ubase + y * width / 4 + x / 2] = U > 255 ? 255 : U < 0 ? 0 : (unsigned char)U;
-    yuv[Vbase + y * width / 4 + x / 2] = V > 255 ? 255 : V < 0 ? 0 : (unsigned char)V;
-}
-
-unsigned char *oil_filter_yuv420(unsigned char *buffer, const int width, const int height)
-{
-    int bsize = 32;
-    int w = std::ceil((float) width / (float)bsize);
-    int h = std::ceil((float) height / (float)bsize);
-
-    dim3 dimBlock(bsize, bsize);
-    dim3 dimGrid(w, h);
-
-    // Device Yuvbuffer
-    unsigned char *devYuvBuffer;
-    if (cudaMalloc(&devYuvBuffer, width * height * 3 / 2) != cudaSuccess)
-        abortError("Fail buffer allocation");
-    if (cudaMemcpy(devYuvBuffer, buffer, width * height * 3 / 2, cudaMemcpyHostToDevice) != cudaSuccess)
-        abortError("Fail buffer copy");
-
-    // Device image buffer
-    unsigned char *devBuffer;
-    size_t Pitch;
-    if (cudaMallocPitch(&devBuffer, &Pitch, width * 3 * sizeof(unsigned char), height) != cudaSuccess)
-        abortError("Fail buffer allocation");
-    yuv2rgb<<<dimGrid, dimBlock>>>(devYuvBuffer, width, height, devBuffer, Pitch);
-    cudaDeviceSynchronize();
-
-    auto devRes = oil_filter_(devBuffer, &Pitch, width, height);
-    cudaFree(devBuffer);
-
-    rgb2yuv<<<dimGrid, dimBlock>>>(devRes, Pitch, width, height, devYuvBuffer);
-    cudaDeviceSynchronize();
-    cudaFree(devRes);
-
-    auto res = (unsigned char *)malloc( height * width * 3 / 2);
-
-    if (cudaMemcpy(res, devYuvBuffer, width * height * 3 / 2, cudaMemcpyDeviceToHost) != cudaSuccess)
-        abortError("Fail result copy");
-    cudaFree(devYuvBuffer);
 
     return res;
 }
