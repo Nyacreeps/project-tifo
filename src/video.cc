@@ -1,20 +1,26 @@
 #include <opencv2/opencv.hpp>
 
+#include <string>
+#include <iostream>
+
 using namespace cv;
-int main(int, char**)
+int main(int argc, char** argv)
 {
-    VideoCapture cap(0);
-    if(!cap.isOpened()) return -1;
-    Mat frame, edges;
-    namedWindow("edges", WINDOW_AUTOSIZE);
-    for(;;)
-    {
-        cap >> frame;
-        cvtColor(frame, edges, COLOR_BGR2GRAY);
-        GaussianBlur(edges, edges, Size(7,7), 1.5, 1.5);
-        Canny(edges, edges, 0, 30, 3);
-        imshow("edges", edges);
-        if(waitKey(30) >= 0) break;
+    std::cout << cv::getBuildInformation() << std::endl;
+    cv::VideoCapture cap(argv[1]);
+    if (!cap.isOpened()) {
+        std::cout << "Error opening stream.\n";
+        return 1;
     }
+    int count = 0;
+    while(true) {
+        cv::Mat frame;
+        cap >> frame;
+        if (frame.empty())
+            break;
+        count++;
+    }
+    cap.release();
+    std::cout << "nbFrames " << std::to_string(count) << '\n';
     return 0;
 }

@@ -4,7 +4,7 @@ project(VIDEO_FILTER CXX)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra  -std=c++2a -O3 -DNDEBUG")
 
-SET(OpenCV_DIR ~/Programs/build/)
+# SET(OpenCV_DIR ~/Programs/build/)
 FIND_PACKAGE( OpenCV REQUIRED )                              
 INCLUDE_DIRECTORIES( ${OpenCV_INCLUDE_DIRS} )
 
