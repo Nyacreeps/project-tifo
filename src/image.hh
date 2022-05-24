@@ -4,4 +4,4 @@
 
 Matrix2D<int> computeIntensities(const Matrix2D<color::RGB>& image, float intensityLevels);
 
-Matrix2D<color::RGB> oilFilter(const Matrix2D<color::RGB>& image, float intensityLevels, int radius);
+Matrix2D<color::RGB> oilFilter(const Matrix2D<color::RGB>& image, float intensityLevels, int radius, bool debug = false);

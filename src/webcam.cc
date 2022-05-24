@@ -28,6 +28,7 @@ char *prog;
 
 char *device;
 int dev_fd;
+float frame_delay;
 
 int frame_width;
 int frame_height;
@@ -97,9 +98,15 @@ process_args(int argc, char **argv)
 	switch (argc) {
 	case 1:
 		device = (char*)"/dev/video0";
+		frame_delay = 0.0f;
 		break;
 	case 2:
 		device = argv[1];
+		frame_delay = 0.0f;
+		break;
+	case 3:
+		device = argv[1];
+		frame_delay = strtof(argv[2], nullptr);
 		break;
 	default:
 		usage();
@@ -191,17 +198,27 @@ void copy_frames(void) {
 	unsigned char* rgb_frame = (unsigned char*)malloc(frame_height * frame_width * 3 * sizeof(unsigned char));
 	if (frame == NULL) 
 		fail((char*)"cannot malloc frame");
+	
+	clock_t time_last_frame = clock();
+	// unsigned char *cur_frame = (unsigned char*)malloc(frame_bytes);
+	int i = 0;
 	while (read_header((char*)"FRAME")) {
+		clock_t time_this_frame = clock();
 		if (fread(frame, 1, frame_bytes, stdin) != frame_bytes) {
     		free(frame);
 			fail((char*)"malformed frame");
     	}
-		yuv420_to_rgb(frame, rgb_frame, frame_height, frame_width);
-		rgb_to_yuv420(frame, rgb_frame, frame_height, frame_width);
+		// if (((time_this_frame - time_last_frame) >= (frame_delay * CLOCKS_PER_SEC)) || i == 0) { 
+			time_last_frame = time_this_frame;
+			yuv420_to_rgb(frame, rgb_frame, frame_height, frame_width);
+			rgb_to_yuv420(frame, rgb_frame, frame_height, frame_width);
+			// cur_frame = frame;
+		// }
 		if (write(dev_fd, frame, frame_bytes) != frame_bytes) {
-    		free(frame);
-			sysfail((char*)"write");
-    	}
+				free(frame);
+				sysfail((char*)"write");
+		}
+		i++;
 	}
 	free(rgb_frame);
 	free(frame);

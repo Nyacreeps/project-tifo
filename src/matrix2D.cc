@@ -22,6 +22,18 @@ Matrix2D<color::RGB> Matrix2D<color::RGB>::loadFromPNG(const std::string& path) 
 }
 
 template<>
+Matrix2D<color::RGB> Matrix2D<color::RGB>::loadFromCVBuffer(unsigned char* buf, int rows, int cols) {
+    auto result = Matrix2D<color::RGB>(rows, cols);
+    for (int i = 0; i < result.rows_; i++) {
+        for (int j = 0; j < result.cols_; j++) {
+            int index = i * (3 * result.cols_) + (j * 3);
+            result[i][j] = color::RGB(buf[index + 2], buf[index + 1], buf[index]);
+        }
+    }
+    return result;
+}
+
+template<>
 void Matrix2D<color::RGB>::saveAsPNG(const std::string& path) {
     std::vector<unsigned char> image;
     for (int i = 0; i < this->rows_; i++) {
@@ -36,6 +48,18 @@ void Matrix2D<color::RGB>::saveAsPNG(const std::string& path) {
     if (error) {
         std::cout << "encoder error " << error << ": " << lodepng_error_text(error) << '\n';
         throw std::exception();
+    }
+}
+
+template<>
+void Matrix2D<color::RGB>::saveAsCVBuffer(unsigned char* buf) {
+    for (int i = 0; i < this->rows_; i++) {
+        for (int j = 0; j < this->cols_; j++) {
+            int index = i * this->cols_ * 3 + j * 3;
+            buf[index] = (*this)[i][j].blue;
+            buf[index + 1] = (*this)[i][j].green;
+            buf[index + 2] = (*this)[i][j].red;
+        }
     }
 }
 

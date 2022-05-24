@@ -5,11 +5,11 @@ project(VIDEO_FILTER CXX)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra  -std=c++2a -O3 -DNDEBUG")
 
 # SET(OpenCV_DIR ~/Programs/build/)
-FIND_PACKAGE( OpenCV REQUIRED )                              
+FIND_PACKAGE(OpenCV)                              
 INCLUDE_DIRECTORIES( ${OpenCV_INCLUDE_DIRS} )
 
 add_executable(videofilter)
-target_sources(videofilter PRIVATE video.cc)
+target_sources(videofilter PRIVATE video.cc matrix2D.cc lodepng.cc color.cc image.cc morpho.cc)
 target_include_directories(videofilter PRIVATE .)
 TARGET_LINK_LIBRARIES(videofilter ${OpenCV_LIBS})
 

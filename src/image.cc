@@ -18,25 +18,27 @@ Matrix2D<int> computeIntensities(const Matrix2D<color::RGB>& image, float intens
     return result;
 }
 
-Matrix2D<color::RGB> oilFilter(const Matrix2D<color::RGB>& image, float intensityLevels, int radius) {
+Matrix2D<color::RGB> oilFilter(const Matrix2D<color::RGB>& image, float intensityLevels, int radius, bool debug/*  = false */) {
     auto mask = morphoCircle(radius);
     auto result = Matrix2D<color::RGB>(image.rows_, image.cols_);
     auto intensityCache = computeIntensities(image, intensityLevels);
     int progress = 0;
     for (int i = 0; i < image.rows_; i++) {
         for (int j = 0; j < image.cols_; j++) {
-            if ((progress % (int)(image.rows_ * image.cols_ / 20)) == 0) {
-                double percentage = (double)progress / (double)(image.rows_ * image.cols_);
-                std::cout << "[";
-                int pos = (int)(70. * percentage);
-                for (int i = 0; i < 70; ++i) {
-                    if (i < pos) std::cout << "=";
-                    else if (i == pos) std::cout << ">";
-                    else std::cout << " ";
+            if (debug) {
+                if ((progress % (int)(image.rows_ * image.cols_ / 20)) == 0) {
+                    double percentage = (double)progress / (double)(image.rows_ * image.cols_);
+                    std::cout << "[";
+                    int pos = (int)(70. * percentage);
+                    for (int i = 0; i < 70; ++i) {
+                        if (i < pos) std::cout << "=";
+                        else if (i == pos) std::cout << ">";
+                        else std::cout << " ";
+                    }
+                    std::cout << "] " << int(percentage * 100.0) << " %\r";
+                    std::cout.flush();
+                    progress++;
                 }
-                std::cout << "] " << int(percentage * 100.0) + 1 << " %\r";
-                std::cout.flush();
-                progress++;
             }
             int intensityBins[256] = {0};
             int averageR[256] = {0};
@@ -73,6 +75,7 @@ Matrix2D<color::RGB> oilFilter(const Matrix2D<color::RGB>& image, float intensit
             progress++;
         }
     }
-    std::cout << '\n';
+    if (debug)
+        std::cout << '\n';
     return result;
 }

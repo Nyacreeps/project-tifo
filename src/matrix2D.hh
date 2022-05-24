@@ -47,6 +47,8 @@ public:
         rows_(rows), cols_(cols), data_(std::vector<T>(rows * cols)) {};
 
     static Matrix2D<T> loadFromPNG(const std::string& path);
+    static Matrix2D<T> loadFromCVBuffer(unsigned char* buf, int rows, int cols);
+    void saveAsCVBuffer(unsigned char* buf);
     void saveAsPNG(const std::string& path);
     static Matrix2D<T> loadFromYUV420Frame(unsigned char* frame, int width, int height);
 

@@ -24,10 +24,13 @@ Pour le filtre webcam :
     $ make webcamfilter
     $ sudo modprobe v4l2loopback
     $ ffmpeg -hide_banner -loglevel error -f v4l2 -r 25 -an  -i /dev/video0 -pix_fmt yuv420p \
-    -f yuv4mpegpipe - | ./webcamfilter /dev/video2
+    -f yuv4mpegpipe - | ./webcamfilter /dev/video2 (frame_delay)
     $ vlc v4l2:///dev/video2
 
 Pour le filtre video :
 
     $ make videofilter
-    $ ./videofilter --input pathIn --output pathOut
+    $ ./videofilter videoIn videoOut framerate
+
+Le framerate est littéralement le nombre d'images casées en une seconde, donc au mieux il faudrait mettre le meme que 
+la vidéo originale sinon la vidéo va être accélérée/ralentie...

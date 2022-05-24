@@ -42,7 +42,7 @@ int main(int argc, char** argv) {
         }
         auto image = Matrix2D<color::RGB>::loadFromPNG(inputFile);
         clock_t tStart = clock();
-        auto filtered = oilFilter(image, 20, 5);
+        auto filtered = oilFilter(image, 20, 5, true);
         printf("Time taken : %.2fs\n", (double)(clock() - tStart)/CLOCKS_PER_SEC);
         filtered.saveAsPNG(outputFile);
     }
