@@ -21,10 +21,10 @@
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <linux/videodev2.h>
+#include "filter.cuh"
 
 char *prog;
 
-char *device;
 int dev_fd;
 
 int frame_width;
@@ -89,13 +89,7 @@ usage(void)
 }
 
 void
-process_args(char *dev)
-{
-	device = dev;
-}
-
-void
-sysfail(char *msg)
+sysfail(const char *msg)
 {
 	perror(msg);
 	exit(1);
@@ -172,40 +166,37 @@ process_header(void)
 }
 
 void copy_frames(void) {
-	unsigned char *frame;
+	auto frame = (unsigned char*)malloc(frame_bytes);
+	//auto rgb_frame = (unsigned char*)malloc(frame_height * frame_width * 3 * sizeof(unsigned char));
 
-	frame = (unsigned char*)malloc(frame_bytes);
-	unsigned char* rgb_frame = (unsigned char*)malloc(frame_height * frame_width * 3 * sizeof(unsigned char));
-	if (frame == NULL) 
-		fail((char*)"cannot malloc frame");
-	while (read_header((char*)"FRAME")) {
+    while (read_header((char*)"FRAME")) {
 		if (fread(frame, 1, frame_bytes, stdin) != frame_bytes) {
     		free(frame);
 			fail((char*)"malformed frame");
     	}
-		yuv420_to_rgb(frame, rgb_frame, frame_height, frame_width);
-		/**************************************************************
-		 * 
-		 *                  TODO FILTER GOES HERE
-		 * 
-		 **************************************************************/
-		rgb_to_yuv420(frame, rgb_frame, frame_height, frame_width);
-		if (write(dev_fd, frame, frame_bytes) != frame_bytes) {
+		//yuv420_to_rgb(frame, rgb_frame, frame_height, frame_width);
+		//rgb_to_yuv420(frame, rgb_frame, frame_height, frame_width);
+
+        auto tmp_frame = oil_filter_yuv420(frame, frame_height, frame_width);
+        free(frame);
+        frame = tmp_frame;
+
+        if (write(dev_fd, frame, frame_bytes) != (ssize_t)frame_bytes) {
     		free(frame);
-			sysfail((char*)"write");
+			sysfail("write");
     	}
 	}
-	free(rgb_frame);
+	//free(rgb_frame);
 	free(frame);
 }
 
 #define vidioc(op, arg) \
 	if (ioctl(dev_fd, VIDIOC_##op, arg) == -1) \
-		sysfail((char*)#op); \
+		sysfail(#op); \
 	else {}
 
 void
-open_video(void)
+open_video(const char *device)
 {
 	struct v4l2_format v;
 
@@ -221,11 +212,10 @@ open_video(void)
 }
 
 int
-launch_webcam(char *dev)
+launch_webcam(const char *dev)
 {
-	process_args(dev);
 	process_header();
-	open_video();
+	open_video(dev);
 	copy_frames();
 	return 0;
 }

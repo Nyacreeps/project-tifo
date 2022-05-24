@@ -27,10 +27,17 @@ int main(int argc, char **argv)
     if (mode == "image")
     {
         int width, height = 0;
-        auto image = read_png(input_file.c_str(), &width, &height);
-        auto result = oil_filter(image, width, height);
-        write_png(output_file.c_str(), result, width, height);
+        auto image_ = read_png(input_file.c_str(), &width, &height);
+        auto image = flatten(image_, width * 3, height);
+        for (int i = 0; i < height; free(image_[i++]));
+        free(image_);
+        auto result_ = oil_filter(image, width, height);
         free(image);
+        auto result = unflatten(result_, width * 3, height);
+        free(result_);
+        write_png(output_file.c_str(), result, width, height);
+        for (int i = 0; i < height; free(result[i++]));
+        free(result);
     }
     else if (mode == "webcam") {
         launch_webcam(input_file.c_str());
