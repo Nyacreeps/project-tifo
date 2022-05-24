@@ -4,10 +4,10 @@ OPT_FLAGS=-O3 -DNDEBUG
 DEBUG_FLAGS=-g -lasan
 
 final : ${SRC} main.cc
-	g++ ${FLAGS} ${OPT_FLAGS} main.cc ${SRC} -o filter
+	g++ ${FLAGS} ${OPT_FLAGS} main.cc ${SRC} -o pngfilter
 
 debug : ${SRC} main.cc
-	g++ ${FLAGS} ${DEBUG_FLAGS} main.cc ${SRC} -o filter
+	g++ ${FLAGS} ${DEBUG_FLAGS} main.cc ${SRC} -o pngfilter
 
-videofilter : ${SRC} video.cc
+webcamfilter : ${SRC} video.cc
 	g++ ${FLAGS} ${OPT_FLAGS} $^ -o $@
