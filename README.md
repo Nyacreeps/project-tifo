@@ -23,7 +23,7 @@ Pour la version GPU :
 
 ### Version GPU
 
-ask Pejman
+Voir readme du projet interne pour le gpu
 
 ### Version CPU
 
@@ -37,6 +37,9 @@ Pour le filtre sur png :
     $ make pngfilter
     $ ./pngfilter --input pathIn --output pathOut
 
+<img src="resources/forest.png" alt="drawing" width="400"/>
+<img src="resources/test.png" alt="drawing" width="400"/>
+
 Pour le filtre video :
 
     $ make videofilter
@@ -46,4 +49,4 @@ Example rendu : https://youtu.be/ie_uuXbl8fI
 
 Le framerate est littéralement le nombre d'images casées en une seconde, donc au mieux il faudrait mettre le meme que 
 la vidéo originale sinon la vidéo va être accélérée/ralentie...  
-Ca tourne sur cpu donc c'est très long...
+Ca tourne sur cpu donc c'est plutôt long...
