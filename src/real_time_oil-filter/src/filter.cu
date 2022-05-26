@@ -1,4 +1,6 @@
 #include "filter.cuh"
+#include "io_png.hh"
+#include <unistd.h>
 
 [[gnu::noinline]]
 void _abortError(const char *msg, const char *fname, int line) {
@@ -135,8 +137,7 @@ __global__ void apply_filter(unsigned char *buffer, size_t bufferPitch, size_t w
     res_line[x * 3 + 2] = (int)round((double)B / (double)n);
 }
 
-
-unsigned char **oil_filter(unsigned char **buffer_, const int width, const int height)
+static void oil_filter_(unsigned char **devRes, size_t *ResPitch, unsigned char *devBuffer, size_t BufferPitch, const int width, const int height)
 {
     int bsize = 32;
     int w = std::ceil((float) width / (float)bsize);
@@ -147,17 +148,6 @@ unsigned char **oil_filter(unsigned char **buffer_, const int width, const int h
     dim3 dimBlock(bsize, bsize);
     dim3 dimGrid(w, h);
 
-    // Device image buffer
-    unsigned char *devBuffer;
-    size_t BufferPitch;
-    if (cudaMallocPitch(&devBuffer, &BufferPitch, width * 3 * sizeof(unsigned char), height) != cudaSuccess)
-        abortError("Fail buffer allocation");
-    const auto buffer = flatten(buffer_, width * 3, height);
-    if (cudaMemcpy2D(devBuffer, BufferPitch, buffer, width * 3 * sizeof(unsigned char),
-                     width * 3 * sizeof(unsigned char), height, cudaMemcpyHostToDevice) != cudaSuccess)
-        abortError("Fail buffer copy");
-    free(buffer);
-
     // Device I
     unsigned char *devI;
     size_t IPitch;
@@ -166,12 +156,6 @@ unsigned char **oil_filter(unsigned char **buffer_, const int width, const int h
     compute_intensities<<<dimGrid, dimBlock>>>(devBuffer, BufferPitch, width, height,
                                                devI, IPitch);
     cudaDeviceSynchronize();
-
-    // Device result
-    unsigned char *devRes;
-    size_t ResPitch;
-    if (cudaMallocPitch(&devRes, &ResPitch, width * 3 * sizeof(unsigned char), height) != cudaSuccess)
-        abortError("Fail result allocation");
 
     // Device mask
     bool *devMask;
@@ -191,25 +175,44 @@ unsigned char **oil_filter(unsigned char **buffer_, const int width, const int h
         abortError("Fail Imax allocation");
 
     get_Imax<RADIUS><<<dimGrid, dimBlock>>>(devI, IPitch, width, height,
-                                                devMask, MaskPitch,devImax, ImaxPitch);
+                                            devMask, MaskPitch,devImax, ImaxPitch);
     cudaDeviceSynchronize();
+
+    // Device result
+    if (cudaMallocPitch(devRes, ResPitch, width * 3 * sizeof(unsigned char), height) != cudaSuccess)
+        abortError("Fail result allocation");
+
     apply_filter<RADIUS><<<dimGrid, dimBlock>>>(devBuffer, BufferPitch, width, height,
-                                                devRes, ResPitch, devMask, MaskPitch,
+                                                *devRes, *ResPitch, devMask, MaskPitch,
                                                 devI, IPitch, devImax, ImaxPitch);
     cudaDeviceSynchronize();
     cudaFree(devI);
+    cudaFree(devImax);
     cudaFree(devMask);
+}
+
+
+unsigned char *oil_filter(unsigned char *buffer, const int width, const int height)
+{
+    // Device image buffer
+    unsigned char *devBuffer;
+    size_t BufferPitch;
+    if (cudaMallocPitch(&devBuffer, &BufferPitch, width * 3 * sizeof(unsigned char), height) != cudaSuccess)
+        abortError("Fail buffer allocation");
+    if (cudaMemcpy2D(devBuffer, BufferPitch, buffer, width * 3 * sizeof(unsigned char),
+                     width * 3 * sizeof(unsigned char), height, cudaMemcpyHostToDevice) != cudaSuccess)
+        abortError("Fail buffer copy");
+
+    unsigned char *devRes = nullptr;
+    size_t ResPitch;
+    oil_filter_(&devRes, &ResPitch, devBuffer, BufferPitch, width, height);
     cudaFree(devBuffer);
 
-    auto res_ = (unsigned char *)malloc( height * width * 3 * sizeof(unsigned char));
-
-    if (cudaMemcpy2D(res_, width * 3 * sizeof(unsigned char), devRes, ResPitch,
+    auto res = (unsigned char *)malloc( height * width * 3 * sizeof(unsigned char));
+    if (cudaMemcpy2D(res, width * 3 * sizeof(unsigned char), devRes, ResPitch,
                      width * 3 * sizeof(unsigned char), height, cudaMemcpyDeviceToHost) != cudaSuccess)
         abortError("Fail result copy");
     cudaFree(devRes);
-
-    auto res = unflatten(res_, width * 3, height);
-    free(res_);
 
     return res;
 }
