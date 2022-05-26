@@ -2,7 +2,7 @@
 #define OIL_FILTER_FILTER_CUH
 
 #define INTENSITY 20
-#define RADIUS 3
+#define RADIUS 4
 
 #include <spdlog/spdlog.h>
 #include <cmath>

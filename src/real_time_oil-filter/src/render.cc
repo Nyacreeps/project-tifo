@@ -4,22 +4,22 @@
 #include <opencv4/opencv2/highgui.hpp>
 #include <opencv4/opencv2/imgproc.hpp>
 
-#include "video.hh"
-
 int main(int argc, char **argv)
 {
     (void) argc;
     (void) argv;
 
-    std::string input_file = "";
-    std::string output_file = "";
+    std::string input_file;
+    std::string output_file;
     std::string mode = "image";
+    int scale = 1;
     bool debug = false;
 
     CLI::App app{"oil-filter"};
     app.add_option("-i,--input", input_file, "Input image/video")
         ->check(CLI::ExistingFile);
     app.add_option("-o,--output", output_file, "Output image/video");
+    app.add_option("-s,--scale", scale, "Scale factor for webcam output");
     app.add_set("-m,--mode", mode, {"image", "video", "webcam"}, "Either 'image', 'video' or 'webcam'");
     app.add_flag("-d,--debug", debug, "Enable debug mode");
     CLI11_PARSE(app, argc, argv);
@@ -30,7 +30,7 @@ int main(int argc, char **argv)
 
     if (mode == "image")
     {
-        if (output_file == "")
+        if (output_file.empty())
             output_file = "output.png";
         int width, height = 0;
         auto image_ = read_png(input_file.c_str(), &width, &height);
@@ -62,10 +62,10 @@ int main(int argc, char **argv)
             }
             auto res = oil_filter(array.data(), cur_frame.cols, cur_frame.rows);
             cv::Mat result(cur_frame.rows, cur_frame.cols, CV_8UC3, res);
-            cv::resize(result, result, cv::Size(cur_frame.cols * 3, cur_frame.rows * 3), 0, 0, cv::INTER_LINEAR);
+            cv::resize(result, result, cv::Size(cur_frame.cols * scale, cur_frame.rows * scale), 0, 0, cv::INTER_LINEAR);
             cv::imshow("Capture", result);
             free(res);
-            int key = cv::waitKey(30) & 0xFF;
+            int key = cv::waitKey(10) & 0xFF;
             if (key == 27) {
                 cv::destroyAllWindows();
                 break;
@@ -73,7 +73,7 @@ int main(int argc, char **argv)
         }
     }
     if (mode == "video") {
-        if (output_file == "")
+        if (output_file.empty())
             output_file = "output.avi";
         spdlog::debug("Reading {}", input_file);
         cv::VideoCapture cap(input_file);
@@ -87,6 +87,7 @@ int main(int argc, char **argv)
         int frame_height = cap.get(cv::CAP_PROP_FRAME_HEIGHT);
 
         cv::VideoWriter video(output_file, cv::VideoWriter::fourcc('M','J','P','G'), 30, cv::Size(frame_width,frame_height));
+        cv::namedWindow("Capture", cv::WINDOW_AUTOSIZE);
         while(true) {
             cv::Mat cur_frame;
 
@@ -108,7 +109,7 @@ int main(int argc, char **argv)
             free(res);
 
             video.write(result);
-            imshow("Frame", result);
+            cv::imshow("Capture", result);
             auto key = cv::waitKey(25) & 0xFF;
             if(key == 27)
                 break;

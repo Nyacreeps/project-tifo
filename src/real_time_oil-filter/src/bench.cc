@@ -2,7 +2,7 @@
 #include "io_png.hh"
 #include "filter.cuh"
 
-constexpr int niteration = 20;
+constexpr int niteration = 40;
 
 void BM_Rendering_gpu(benchmark::State& st)
 {
